@@ -112,3 +112,4 @@
 /Users/tim/RiderProjects/MarketPlace2/bin/Debug/net9.0/MySqlConnector.dll
 /Users/tim/RiderProjects/MarketPlace2/bin/Debug/net9.0/Pomelo.EntityFrameworkCore.MySql.dll
 /Users/tim/RiderProjects/MarketPlace2/obj/Debug/net9.0/MarketPlace2.csproj.AssemblyReference.cache
+/Users/tim/RiderProjects/MarketPlace2/obj/Debug/net9.0/MarketPlace2.sourcelink.json

@@ -13,7 +13,7 @@ public partial class Order
 
     public DateTime? OrderDate { get; set; }
 
-    public string Status { get; set; } = null!;
+    public string Status { get; set; }
 
     public decimal TotalPrice { get; set; }
 
@@ -22,4 +22,7 @@ public partial class Order
     public virtual PickupPoint PickupPoint { get; set; } = null!;
 
     public virtual User User { get; set; } = null!;
+
+    
 }
+

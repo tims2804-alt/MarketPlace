@@ -12,7 +12,7 @@ namespace MarketPlace2
     {
         static User currentUser = null;
 
-        static void Main(string[] args)
+        static void Main(string[] args )
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             using (var db = new MyDbContext())
@@ -217,7 +217,7 @@ namespace MarketPlace2
                 
                 static void AddToCart(MyDbContext db)
                 {
-                    ViewProducts(db); // Показываем список товаров
+                    ViewProducts(db); 
 
                     Console.WriteLine("\nВведите ID продукта, который хотите добавить в корзину:");
                     if (!int.TryParse(Console.ReadLine(), out int productId))
@@ -276,7 +276,7 @@ namespace MarketPlace2
 
                 static void ViewCart(MyDbContext db)
                 {
-                    Console.WriteLine("\n--- 🛒 Ваша корзина ---");
+                    Console.WriteLine("\n--- Ваша корзина ---");
 
                     var cartItems = db.CartItems
                         .Where(c => c.CartId == currentUser.UserId)
@@ -327,17 +327,80 @@ namespace MarketPlace2
                         }
                     }
 
-                    static void PlaceOrder(MyDbContext db, List<CartItem> cartItems)
-                    {
-                        bool allAvailable = true;
+                static void PlaceOrder(MyDbContext db, List<CartItem> cartItems)
+{
+                        Console.WriteLine("\n--- Оформление заказа ---");
 
-                        foreach (var item in cartItems)
+                        if (!cartItems.Any())
+                        {
+                            Console.WriteLine(" Корзина пуста!");
+                            return;
+                        }
+
+                        Console.WriteLine("Введите ID товаров через запятую, которые хотите заказать, или напишите 'все': ");
+                        string input = Console.ReadLine()?.Trim().ToLower();
+
+                        List<CartItem> selectedItems;
+
+                        if (input == "все" || input == "all" || input == "всё" || input == "al")
+                        {
+                            selectedItems = cartItems; 
+                            Console.WriteLine(" Вы выбрали все товары из корзины.");
+                        }
+                        else
+                        {
+                            var ids = input
+                                .Split(',')
+                                .Select(id => id.Trim())
+                                .Where(id => int.TryParse(id, out _))
+                                .Select(int.Parse)
+                                .ToList();
+
+                            selectedItems = cartItems
+                                .Where(ci => ids.Contains(ci.ProductId))
+                                .ToList();
+
+                            if (!selectedItems.Any())
+                            {
+                                Console.WriteLine(" Ни одного корректного ID не выбрано!");
+                                return;
+                            }
+                        }
+
+                        Console.WriteLine("\nВыберите пункт выдачи:");
+                        var points = db.PickupPoints.ToList();
+                        if (!points.Any())
+                        {
+                            Console.WriteLine(" Нет доступных пунктов выдачи!");
+                            return;
+                        }
+
+                        for (int i = 0; i < points.Count; i++)
+                            Console.WriteLine($"{i + 1}) {points[i].Address}");
+
+                        Console.Write("➡ Введите номер пункта: ");
+                        if (!int.TryParse(Console.ReadLine(), out int pointIndex) || pointIndex < 1 || pointIndex > points.Count)
+                        {
+                            Console.WriteLine(" Некорректный выбор пункта!");
+                            return;
+                        }
+
+                        var pickup = points[pointIndex - 1];
+
+                        bool allAvailable = true;
+                        decimal totalAmount = 0;
+
+                        foreach (var item in selectedItems)
                         {
                             var product = db.Products.FirstOrDefault(p => p.ProductId == item.ProductId);
                             if (product == null || product.StockQuantity < item.Quantity)
                             {
                                 Console.WriteLine($" Недостаточно товара '{product?.Name ?? "Не найден"}' на складе!");
                                 allAvailable = false;
+                            }
+                            else
+                            {
+                                totalAmount += product.Price * item.Quantity;
                             }
                         }
 
@@ -347,18 +410,42 @@ namespace MarketPlace2
                             return;
                         }
 
-                        foreach (var item in cartItems)
+                        var order = new Order
+                        {
+                            UserId = currentUser.UserId,
+                            PickupPointId = pickup.PickupPointId,
+                            OrderDate = DateTime.Now,
+                            Status = "Ожидает подтверждения",
+                            TotalPrice = totalAmount
+                        };
+
+                        db.Orders.Add(order);
+                        db.SaveChanges();
+
+                        foreach (var item in selectedItems)
                         {
                             var product = db.Products.First(p => p.ProductId == item.ProductId);
-                            product.StockQuantity -= item.Quantity; // уменьшаем остаток
+                            product.StockQuantity -= item.Quantity;
 
-                            db.CartItems.Remove(item); // очищаем корзину
+                            db.OrderItems.Add(new OrderItem
+                            {
+                                OrderId = order.OrderId,
+                                ProductId = product.ProductId,
+                                Quantity = item.Quantity,
+                                PriceAtPurchase = product.Price
+                            });
+
+                            db.CartItems.Remove(item); 
                         }
 
                         db.SaveChanges();
 
-                        Console.WriteLine(" Заказ успешно оформлен!");
+                        Console.WriteLine($"\n Заказ №{order.OrderId} оформлен!");
+                        Console.WriteLine($" Сумма: {totalAmount}₽");
+                        Console.WriteLine($" Пункт выдачи: {pickup.Address}");
+                        Console.WriteLine($" Дата: {order.OrderDate}");
                     }
+
                     
                     static void RemoveFromCart(MyDbContext db)
                     {
